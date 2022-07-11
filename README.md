@@ -62,7 +62,7 @@ Then Hive uses the two generated key to encrypt files, but first of all Hive ran
 
 Hive ransomware v5 uses the generated cleartext keys to encrypt files using the XOR instruction, so we are facing a very fast symmetric encryption on modern x86/x64 CPUs.
 
-## How Hive v5 protects itself, how a cleartext becomes a keystream
+## How Hive v5 protects itself, how a cleartext key becomes a keystream
 
 Hive ransomware v5 needs to protect the cleartext generated key, encrypting it two times, hereafter we will call these **rounds**. It takes two rounds of encryption to get the final keystream.
 
