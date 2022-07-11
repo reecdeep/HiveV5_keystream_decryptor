@@ -56,7 +56,7 @@ A cleartext key is made of 0xA00000 ~~secure randomly generated~~ bytes. Then th
 
 ![memcpy2FFF00](https://user-images.githubusercontent.com/72123074/178325001-52022aa9-a00a-4a7d-9cb4-d6c75a913395.jpg)
 
-Then it uses the two generated key to encrypt files, but first of all Hive ransomware v5 encrypts the generated keys into a custom structure (hereafter called **keystream**) and places them at the root of each drive it encrypts using the .key extension. For example, if you have both drives C and D installed on your system, the encrypted keystreams will be present in the root of each drive.
+Then Hive uses the two generated key to encrypt files, but first of all Hive ransomware v5 encrypts the generated keys into custom structurer (hereafter called **keystreams**) and places them at the root of each drive it encrypts using the .key extension. For example, if you have both drives C and D installed on your system, the encrypted keystreams will be present in the root of each drive.
 
 ![keysAtRoot](https://user-images.githubusercontent.com/72123074/178324993-6a0bb054-33a2-4851-b987-3ea7e2dabda5.jpg)
 
