@@ -1,4 +1,3 @@
-
 #include <Windows.h> 
 #include <iostream>
 #include <stdio.h>
@@ -32,6 +31,7 @@ unsigned int* createSeed();
 unsigned int createbyte(unsigned int* seed);
 void openFile(std::string file_name, unsigned char* buffer, int dim);
 unsigned char* fingerprint(unsigned char* bytes, unsigned int dim_bytes);
+bool FileExist(const std::string& name);
 
 unsigned long long divi;
 
@@ -51,11 +51,18 @@ BYTE basepoint[32] = { 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 //this is the public key extracted from the a0h2uih3d2.exe sample.
 //please refer to the readme on how the public key could be extracted
+//BYTE hivePublic[64] = {
+//		0x2F, 0xD5, 0xC4, 0x04, 0x5A, 0xD3, 0x88, 0x9E, 0x3D, 0x5A, 0x8E, 0xEE, 0xD0, 0x86, 0x03, 0x06,
+//		0xD5, 0x01, 0xB9, 0x40, 0x03, 0x77, 0xCF, 0x23, 0xA0, 0x1F, 0xE1, 0xA3, 0x86, 0x8B, 0x03, 0x3F,
+//		0x77, 0x51, 0x0B, 0xB7, 0x48, 0x17, 0x50, 0xFD, 0xC0, 0xCE, 0xEC, 0xA7, 0x48, 0x57, 0x42, 0xF3,
+//		0x4D, 0x20, 0xBC, 0x27, 0x0E, 0xD2, 0xB0, 0x3C, 0x58, 0xE4, 0xDB, 0x32, 0x9E, 0x2F, 0x3A, 0x03 };
+
+
 BYTE hivePublic[64] = {
-		0x2F, 0xD5, 0xC4, 0x04, 0x5A, 0xD3, 0x88, 0x9E, 0x3D, 0x5A, 0x8E, 0xEE, 0xD0, 0x86, 0x03, 0x06,
-		0xD5, 0x01, 0xB9, 0x40, 0x03, 0x77, 0xCF, 0x23, 0xA0, 0x1F, 0xE1, 0xA3, 0x86, 0x8B, 0x03, 0x3F,
-		0x77, 0x51, 0x0B, 0xB7, 0x48, 0x17, 0x50, 0xFD, 0xC0, 0xCE, 0xEC, 0xA7, 0x48, 0x57, 0x42, 0xF3,
-		0x4D, 0x20, 0xBC, 0x27, 0x0E, 0xD2, 0xB0, 0x3C, 0x58, 0xE4, 0xDB, 0x32, 0x9E, 0x2F, 0x3A, 0x03 };
+		0x77, 0x73, 0x41, 0x55, 0xDF, 0x4A, 0x42, 0x54, 0x54, 0x99, 0xA8, 0xAE, 0x06, 0xDD, 0xA8, 0x86, 0x33, 0x39, 0x66, 0xAC, 0x20, 0x8E, 0xB0, 0x8F, 0x95, 0xED, 0xCC, 0x7B, 0xAD, 0xFB, 0x52, 0x32, 
+		0x6B, 0x16, 0xAB, 0xE5, 0xAB, 0x50, 0xF3, 0x0C, 0x95, 0x56, 0x61, 0x34, 0x43, 0x06, 0x7B, 0xED, 0xD8, 0x42, 0x1E, 0xAF, 0xC5, 0x1F, 0xBD, 0x1D, 0xE9, 0x9F, 0x7F, 0x59, 0xBE, 0xC7, 0x7B, 0x44
+};
+
 
 
 //dictionary dimension for private key generation
@@ -262,21 +269,16 @@ void bruteforce_existing_keystream_using_computed_dictionary()
 		}
 		else
 		{
-			unsigned char* dictionary = new unsigned char[dictionary_dimension]();
-			openFile(dictionary_path, dictionary, dictionary_dimension);
-
-			//to create the dictionary of possible leading bytes, I read the unique values of the dictionary file created earlier
-			std::cout << "Creating leading bytes dictionary for private key...\n";
-			std::set<unsigned char> leadingBytesArray = create_leading_byte_dictionary(dictionary);
-
-			std::cout << "Creating list of possible private keys...\n";
-			//2nd is the round of encryption, starting from the last encryption round
-			boolean result = brute_privatekey("2nd", dictionary, leadingBytesArray, curve25519_pub_round2);
-
-			if (result == true)
+			//check if privateKey-round2nd-found.bin exists in the same keystream directory
+			
+			if ( FileExist(currentWorkingPath + "\\privateKey-round2nd-found.bin"))
 			{
-				//next step
-				//use recovered private key stored in recovered_PK to decrypt 2nd round
+				// if privateKey-round2nd-found.bin file exists, skip
+				std::cout << "\n->  2nd round privateKey found, skipping to 1st private key bruteforce!!!\n";
+
+				unsigned char* private_key_round2 = new unsigned char[0x20]();
+				openFile(currentWorkingPath + "\\privateKey-round2nd-found.bin", private_key_round2, 0x20);
+
 
 				//extract  XChaCha20 NONCE(stored from 0x0 to 0x18)
 				std::cout << "Extracting XChaCha20 nonce round2...\n";
@@ -301,7 +303,7 @@ void bruteforce_existing_keystream_using_computed_dictionary()
 				unsigned char* sharedKey_round2 = new unsigned char[0x20]();
 
 				//deriving shared key from recovered private key and hive round2 public key
-				crypto_x25519(sharedKey_round2, recovered_PK, hivePubKey_round2);
+				crypto_x25519(sharedKey_round2, private_key_round2, hivePubKey_round2);
 
 				unsigned char* key_round2 = new unsigned char[32]();
 				BYTE hchacha20_nonce[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
@@ -313,7 +315,7 @@ void bruteforce_existing_keystream_using_computed_dictionary()
 				if (crypto_unlock(dec_data_round1, key_round2, xchacha20_nonce_round2, mac_round2, enc_data_round1, 0xCFFF48))
 				{
 					//Message corrupted or wrong key
-					std::cout << "stream NOK!\n";
+					std::cout << "stream NOK - check your 2nd round private key file!\n";
 				}
 				else
 				{
@@ -325,14 +327,17 @@ void bruteforce_existing_keystream_using_computed_dictionary()
 					unsigned char* curve25519_pub_round1 = new unsigned char[0x20]();
 					memcpy(curve25519_pub_round1, dec_data_round1 + 0x18, 0x20);
 
-					std::cout << "Creating list of possible private keys...\n";
-					//2nd is the round of encryption, starting from the last encryption round
-					boolean result = brute_privatekey("1st", dictionary, leadingBytesArray, curve25519_pub_round1);
 
-					if (result == true)
+					if (FileExist(currentWorkingPath + "\\privateKey-round1st-found.bin"))
 					{
-						//last step
-						//use recovered private key stored in recovered_PK to decrypt 1st round
+						//nothing to do! Check 1st private key is working
+
+						// if privateKey-round1st-found.bin file exists, skip
+						std::cout << "\n-> also 1st round privateKey found, checking key!!!\n";
+
+						unsigned char* private_key_round1 = new unsigned char[0x20]();
+						openFile(currentWorkingPath + "\\privateKey-round1st-found.bin", private_key_round1, 0x20);
+
 
 						//extract  XChaCha20 NONCE(stored from 0x0 to 0x18)
 						std::cout << "Extracting XChaCha20 nonce round1...\n";
@@ -356,7 +361,7 @@ void bruteforce_existing_keystream_using_computed_dictionary()
 						unsigned char* sharedKey_round1 = new unsigned char[0x20]();
 
 						//deriving shared key from recovered private key and hive round2 public key
-						crypto_x25519(sharedKey_round1, recovered_PK, hivePubKey_round1);
+						crypto_x25519(sharedKey_round1, private_key_round1, hivePubKey_round1);
 
 						unsigned char* key_round1 = new unsigned char[32]();
 						BYTE hchacha20_nonce[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
@@ -368,29 +373,227 @@ void bruteforce_existing_keystream_using_computed_dictionary()
 						if (crypto_unlock(dec_cleartext_key, key_round1, xchacha20_nonce_round1, mac_round1, enc_cleartext_key, 0xCFFF00))
 						{
 							//Message corrupted or wrong key
-							std::cout << "stream NOK!\n";
+							std::cout << "stream NOK! Check your 1st round private key file\n";
 						}
 						else
 						{
-							//Message ok and right key
-							std::cout << "stream OK!\n";
-
-
-							std::ofstream fileDEC;
-							fileDEC.open(currentWorkingPath + "\\decrypted_keystream.key", std::ios_base::binary);
-							fileDEC.write((const char*)dec_cleartext_key, 0xCFFF00);
-							fileDEC.close();
-							std::cout << "decrypt completed succesfully!\n";
+							std::cout << "stream OK! Nothing to do! 1st private key is working! Go decrypting your files!\n";
 						}
 
 					}
+					else
+					{
+						//else privateKey-round1st-found.bin file NOT FOUND
 
+						unsigned char* dictionary = new unsigned char[dictionary_dimension]();
+						openFile(dictionary_path, dictionary, dictionary_dimension);
+
+						//to create the dictionary of possible leading bytes, I read the unique values of the dictionary file created earlier
+						std::cout << "Creating leading bytes dictionary for private key...\n";
+						std::set<unsigned char> leadingBytesArray = create_leading_byte_dictionary(dictionary);
+
+
+						std::cout << "Creating list of possible private keys...\n";
+						//1st is the round of encryption, starting from the last encryption round
+						boolean result = brute_privatekey("1st", dictionary, leadingBytesArray, curve25519_pub_round1);
+
+						if (result == true)
+						{
+							//last step
+							//use recovered private key stored in recovered_PK to decrypt 1st round
+
+							//extract  XChaCha20 NONCE(stored from 0x0 to 0x18)
+							std::cout << "Extracting XChaCha20 nonce round1...\n";
+							unsigned char* xchacha20_nonce_round1 = new unsigned char[0x18]();
+							memcpy(xchacha20_nonce_round1, dec_data_round1, 0x18);
+
+							//extract encrypted cleartext key (stored from 0x38)
+							std::cout << "Extracting encrypted cleartext key ...\n";
+							unsigned char* enc_cleartext_key = new unsigned char[0xCFFF00]();
+							memcpy(enc_cleartext_key, dec_data_round1 + 0x38, 0xCFFF00);
+
+							//extract mac round1 (stored after 
+							unsigned char* mac_round1 = new unsigned char[0x10]();
+							//0xCFFF38 = 0x18+0x20+0xCFFF00
+							memcpy(mac_round1, dec_data_round1 + 0xCFFF38, 0x10);
+
+							//ectract hive first (round1) public key
+							unsigned char* hivePubKey_round1 = new unsigned char[0x20]();
+							memcpy(hivePubKey_round1, hivePublic, 0x20);
+
+							unsigned char* sharedKey_round1 = new unsigned char[0x20]();
+
+							//deriving shared key from recovered private key and hive round2 public key
+							crypto_x25519(sharedKey_round1, recovered_PK, hivePubKey_round1);
+
+							unsigned char* key_round1 = new unsigned char[32]();
+							BYTE hchacha20_nonce[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+							//derive key from curve25519 shared key
+							crypto_hchacha20(key_round1, sharedKey_round1, hchacha20_nonce);
+
+							unsigned char* dec_cleartext_key = new unsigned char[0xCFFF00]();
+
+							if (crypto_unlock(dec_cleartext_key, key_round1, xchacha20_nonce_round1, mac_round1, enc_cleartext_key, 0xCFFF00))
+							{
+								//Message corrupted or wrong key
+								std::cout << "stream NOK!\n";
+							}
+							else
+							{
+								//Message ok and right key
+								std::cout << "stream OK!\n";
+
+
+								std::ofstream fileDEC;
+								fileDEC.open(currentWorkingPath + "\\decrypted_keystream.key", std::ios_base::binary);
+								fileDEC.write((const char*)dec_cleartext_key, 0xCFFF00);
+								fileDEC.close();
+								std::cout << "decrypt completed succesfully!\n";
+							}
+
+						}
+					}
 
 
 				}
 
 
 			}
+			else
+			{
+				//else //else privateKey-round2nd-found.bin file NOT FOUND
+				unsigned char* dictionary = new unsigned char[dictionary_dimension]();
+				openFile(dictionary_path, dictionary, dictionary_dimension);
+
+				//to create the dictionary of possible leading bytes, I read the unique values of the dictionary file created earlier
+				std::cout << "Creating leading bytes dictionary for private key...\n";
+				std::set<unsigned char> leadingBytesArray = create_leading_byte_dictionary(dictionary);
+
+				std::cout << "Creating list of possible private keys...\n";
+				//2nd is the round of encryption, starting from the last encryption round
+				boolean result = brute_privatekey("2nd", dictionary, leadingBytesArray, curve25519_pub_round2);
+
+				if (result == true)
+				{
+					//next step
+					//use recovered private key stored in recovered_PK to decrypt 2nd round
+
+					//extract  XChaCha20 NONCE(stored from 0x0 to 0x18)
+					std::cout << "Extracting XChaCha20 nonce round2...\n";
+					unsigned char* xchacha20_nonce_round2 = new unsigned char[0x18]();
+					memcpy(xchacha20_nonce_round2, keystream, 0x18);
+
+					//extract  encrypted data(stored from 0x38)
+					std::cout << "Extracting encrypted data ...\n";
+					unsigned char* enc_data_round1 = new unsigned char[0xCFFF48]();
+					memcpy(enc_data_round1, keystream + 0x38, 0xCFFF48);
+
+					//extract mac round2
+					unsigned char* mac_round2 = new unsigned char[0x10]();
+					//0xCFFF80 sarebbe la dimensione totale CFFF90 meno gli ultimi 16 byte
+					//visto che il mac si trova alla fine della struttura cifrata
+					memcpy(mac_round2, keystream + 0xCFFF80, 0x10);
+
+					//ectract hive last (round2) public key
+					unsigned char* hivePubKey_round2 = new unsigned char[0x20]();
+					memcpy(hivePubKey_round2, hivePublic + 0x20, 0x20);
+
+					unsigned char* sharedKey_round2 = new unsigned char[0x20]();
+
+					//deriving shared key from recovered private key and hive round2 public key
+					crypto_x25519(sharedKey_round2, recovered_PK, hivePubKey_round2);
+
+					unsigned char* key_round2 = new unsigned char[32]();
+					BYTE hchacha20_nonce[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+					//derive key from curve25519 shared key
+					crypto_hchacha20(key_round2, sharedKey_round2, hchacha20_nonce);
+
+					unsigned char* dec_data_round1 = new unsigned char[0xCFFF48]();
+
+					if (crypto_unlock(dec_data_round1, key_round2, xchacha20_nonce_round2, mac_round2, enc_data_round1, 0xCFFF48))
+					{
+						//Message corrupted or wrong key
+						std::cout << "stream NOK!\n";
+					}
+					else
+					{
+						//Message ok and right key
+						std::cout << "stream OK!\n";
+
+						//extract our  pubblic x25519 (stored at 0x18)
+						std::cout << "Extracting round 1 public key...\n";
+						unsigned char* curve25519_pub_round1 = new unsigned char[0x20]();
+						memcpy(curve25519_pub_round1, dec_data_round1 + 0x18, 0x20);
+
+						std::cout << "Creating list of possible private keys...\n";
+						//1st is the round of encryption, starting from the last encryption round
+						boolean result = brute_privatekey("1st", dictionary, leadingBytesArray, curve25519_pub_round1);
+
+						if (result == true)
+						{
+							//last step
+							//use recovered private key stored in recovered_PK to decrypt 1st round
+
+							//extract  XChaCha20 NONCE(stored from 0x0 to 0x18)
+							std::cout << "Extracting XChaCha20 nonce round1...\n";
+							unsigned char* xchacha20_nonce_round1 = new unsigned char[0x18]();
+							memcpy(xchacha20_nonce_round1, dec_data_round1, 0x18);
+
+							//extract encrypted cleartext key (stored from 0x38)
+							std::cout << "Extracting encrypted cleartext key ...\n";
+							unsigned char* enc_cleartext_key = new unsigned char[0xCFFF00]();
+							memcpy(enc_cleartext_key, dec_data_round1 + 0x38, 0xCFFF00);
+
+							//extract mac round1 (stored after 
+							unsigned char* mac_round1 = new unsigned char[0x10]();
+							//0xCFFF38 = 0x18+0x20+0xCFFF00
+							memcpy(mac_round1, dec_data_round1 + 0xCFFF38, 0x10);
+
+							//ectract hive first (round1) public key
+							unsigned char* hivePubKey_round1 = new unsigned char[0x20]();
+							memcpy(hivePubKey_round1, hivePublic, 0x20);
+
+							unsigned char* sharedKey_round1 = new unsigned char[0x20]();
+
+							//deriving shared key from recovered private key and hive round2 public key
+							crypto_x25519(sharedKey_round1, recovered_PK, hivePubKey_round1);
+
+							unsigned char* key_round1 = new unsigned char[32]();
+							BYTE hchacha20_nonce[16] = { 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+							//derive key from curve25519 shared key
+							crypto_hchacha20(key_round1, sharedKey_round1, hchacha20_nonce);
+
+							unsigned char* dec_cleartext_key = new unsigned char[0xCFFF00]();
+
+							if (crypto_unlock(dec_cleartext_key, key_round1, xchacha20_nonce_round1, mac_round1, enc_cleartext_key, 0xCFFF00))
+							{
+								//Message corrupted or wrong key
+								std::cout << "stream NOK!\n";
+							}
+							else
+							{
+								//Message ok and right key
+								std::cout << "stream OK!\n";
+
+
+								std::ofstream fileDEC;
+								fileDEC.open(currentWorkingPath + "\\decrypted_keystream.key", std::ios_base::binary);
+								fileDEC.write((const char*)dec_cleartext_key, 0xCFFF00);
+								fileDEC.close();
+								std::cout << "decrypt completed succesfully!\n";
+							}
+
+						}
+
+
+
+					}
+
+
+				}
+			}
+
+			
 
 
 
@@ -612,6 +815,23 @@ void openFile(std::string file_name, unsigned char* buffer, int dim)
 
 }
 
+//function checking file exists
+bool FileExist(const std::string &fileName)
+{
+
+	std::ifstream ifile(fileName, std::ios::binary);
+	if (ifile) {
+		// The file exists
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+
+
+}
+
 
 //round can be 2nd or 1st string
 boolean brute_privatekey(std::string round, unsigned char* dictionary, std::set<unsigned char> startingBytes_array, unsigned char* publickey_from_keystream_array)
@@ -645,7 +865,6 @@ boolean brute_privatekey(std::string round, unsigned char* dictionary, std::set<
 	}
 
 	std::cout << "\nHave been loaded  " << std::dec << set_possible_31bytes_group.size() << " groups of 31 bytes!\n";
-
 	std::cout << "Combining the groups of 31 bytes with the dictionary of starting bytes... \n";
 
 	//converting extracted keystream public key to vector
@@ -763,6 +982,5 @@ std::set<unsigned char> create_leading_byte_dictionary(unsigned char* dictionary
 
 
 }
-
 
 
